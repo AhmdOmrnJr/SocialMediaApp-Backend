@@ -2,6 +2,7 @@
 using Api.Entities;
 using Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -14,12 +15,14 @@ namespace Api.Services
         private readonly IConfiguration _configuration;
         private readonly SignInManager<AppUser> _signInManager;
         private readonly UserManager<AppUser> _userManager;
+        private readonly JWT _jwt;
 
-        public AuthService(IConfiguration configuration, SignInManager<AppUser> signInManager, UserManager<AppUser> userManager)
+        public AuthService(IConfiguration configuration, SignInManager<AppUser> signInManager, UserManager<AppUser> userManager, IOptions<JWT> jwt)
         {
             _configuration = configuration;
             _signInManager = signInManager;
             _userManager = userManager;
+            _jwt = jwt.Value;
         }
         public async Task<string> CreateTokenAsync(AppUser user, UserManager<AppUser> userManager)
         {
@@ -34,13 +37,13 @@ namespace Api.Services
             foreach (var role in userRoles)
                 authClaims.Add(new Claim(ClaimTypes.Role, role));
 
-            var authKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:SecretKey"]));
+            var authKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
 
             var token = new JwtSecurityToken
             (
-                audience: _configuration["JWT:ValidAudience"],
-                issuer: _configuration["JWT:ValidIssuer"],
-                expires: DateTime.UtcNow.AddDays(double.Parse(_configuration["JWT:DurationInDays"])),
+                audience: _jwt.Audience,
+                issuer: _jwt.Issuer,
+                expires: DateTime.UtcNow.AddDays(_jwt.DurationInDays),
                 claims: authClaims,
                 signingCredentials: new SigningCredentials(authKey, SecurityAlgorithms.HmacSha256Signature)
             );
