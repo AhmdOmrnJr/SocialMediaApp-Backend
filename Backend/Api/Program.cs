@@ -1,5 +1,5 @@
-
 using Api.Data;
+using Api.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api
@@ -23,19 +23,33 @@ namespace Api
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy", options =>
+                {
+                    options.AllowAnyHeader().AllowAnyMethod().WithOrigins(builder.Configuration["Origins:AngularHttp"], builder.Configuration["Origins:AngularHttps"]);
+                });
+            });
+
+            // ---------------- Add Extensions ------------------
+            builder.Services.AddApplicationServices();
+            builder.Services.AddJwtAuthentication(builder.Configuration);
+            builder.Services.AddCustomSwagger();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
+            //if (app.Environment.IsDevelopment())
+            //{
                 app.UseSwagger();
                 app.UseSwaggerUI();
-            }
+            //}
 
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
 
+            app.UseCors("CorsPolicy");
 
             app.MapControllers();
 
