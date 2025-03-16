@@ -1,7 +1,9 @@
-﻿using Api.DTOs;
+﻿using Api.Data;
+using Api.DTOs;
 using Api.Entities;
 using Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -10,20 +12,10 @@ using System.Text;
 
 namespace Api.Services
 {
-    public class AuthService : IAuthService
+    public class AuthService(DataContext dpContext, SignInManager<AppUser> signInManager, UserManager<AppUser> userManager, IOptions<JWT> jwt) : IAuthService
     {
-        private readonly IConfiguration _configuration;
-        private readonly SignInManager<AppUser> _signInManager;
-        private readonly UserManager<AppUser> _userManager;
-        private readonly JWT _jwt;
+        private readonly JWT _jwt = jwt.Value;
 
-        public AuthService(IConfiguration configuration, SignInManager<AppUser> signInManager, UserManager<AppUser> userManager, IOptions<JWT> jwt)
-        {
-            _configuration = configuration;
-            _signInManager = signInManager;
-            _userManager = userManager;
-            _jwt = jwt.Value;
-        }
         public async Task<string> CreateTokenAsync(AppUser user, UserManager<AppUser> userManager)
         {
             var authClaims = new List<Claim>()
@@ -53,7 +45,7 @@ namespace Api.Services
 
         public async Task<ResultDto<RegisterDto>> RegisterAsync(RegisterDto model)
         {
-            var exist = await _userManager.FindByEmailAsync(model.Email);
+            var exist = await userManager.FindByEmailAsync(model.Email);
 
             if (exist != null)
             {
@@ -69,10 +61,15 @@ namespace Api.Services
                 FirstName = model.FirstName,
                 LastName = model.LastName,
                 Email = model.Email,
-                UserName = model.FirstName + model.LastName
+                UserName = model.FirstName + model.LastName,
+                KnownAs = model.NickName,
+                Gender = model.Gender,
+                DateOfBirth = model.DateOfBirth,
+                Country = model.Country,
+                City = model.City,
             };
 
-            var result = await _userManager.CreateAsync(user, model.Password);
+            var result = await userManager.CreateAsync(user, model.Password);
             if (result.Succeeded == false)
             {
                 return new ResultDto<RegisterDto>
@@ -91,7 +88,7 @@ namespace Api.Services
 
         public async Task<ResultDto<string>> LoginAsync(LoginDto model)
         {
-            var user = await _userManager.FindByEmailAsync(model.Email);
+            var user = await userManager.FindByEmailAsync(model.Email);
             if (user == null)
             {
                 return new ResultDto<string>
@@ -101,7 +98,7 @@ namespace Api.Services
                 };
             }
 
-            var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
+            var result = await signInManager.CheckPasswordSignInAsync(user, model.Password, false);
             if (result.Succeeded == false)
             {
                 return new ResultDto<string>
@@ -114,10 +111,51 @@ namespace Api.Services
             return new ResultDto<string>
             {
                 IsSuccess = true,
-                Message = "Logged in Succeedded",
-                Entity = await CreateTokenAsync(user, _userManager)
+                Message = "Logged in Successfully",
+                Result = await CreateTokenAsync(user, userManager)
+            };
+        }
+
+        public async Task<ResultDto<IEnumerable<AppUser?>>> GetAllUsers()
+        {
+            var users = await dpContext.Users.ToListAsync();
+
+            if (users is null)
+            {
+                return new ResultDto<IEnumerable<AppUser?>>
+                {
+                    IsSuccess = false,
+                    Message = "no Users Found",
+                };
+            }
+            
+            return new ResultDto<IEnumerable<AppUser?>>
+            {
+                IsSuccess = true,
+                Message = "Users Fetched Successfully",
+                Result = users
+            };
+        }
+
+        public async Task<ResultDto<AppUser?>> GetUser(Guid Id)
+        {
+            var user = await dpContext.Users.FindAsync(Id);
+
+            if (user is null)
+            {
+                return new ResultDto<AppUser?>
+                {
+                    IsSuccess = false,
+                    Message = "User not found"
+                };
+            }
+
+            return new ResultDto<AppUser?>
+            {
+                IsSuccess =true,
+                Message = "User is Found",
+                Result = user
             };
         }
     }
-
 }

@@ -1,5 +1,6 @@
 using Api.Data;
 using Api.Extensions;
+using Api.Middlewares;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api
@@ -39,6 +40,8 @@ namespace Api
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
+            app.UseMiddleware<ExceptionMiddleware>();
+
             //if (app.Environment.IsDevelopment())
             //{
                 app.UseSwagger();
@@ -46,6 +49,8 @@ namespace Api
             //}
 
             app.UseHttpsRedirection();
+
+            app.UseAuthentication();
 
             app.UseAuthorization();
 
